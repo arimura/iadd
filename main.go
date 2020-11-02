@@ -22,9 +22,9 @@ var sortMap = map[byte]int{
 	'U': 100,
 }
 
-func drawText(x, y int, text string) {
+func drawText(x, y int, text string, fg termbox.Attribute) {
 	for i, c := range text {
-		termbox.SetCell(x+i, y, c, coldef, coldef)
+		termbox.SetCell(x+i, y, c, fg, coldef)
 	}
 }
 
@@ -108,6 +108,7 @@ func drawStatus() {
 		if fileStatus.Staging != git.Unmodified {
 			stagingLines = append(stagingLines, statusLine{placeStaging, (byte)(fileStatus.Staging), file})
 		}
+		//TODO: handle copied, UpdatedButUnmarged
 	}
 
 	sort := func(l []statusLine) {
@@ -122,19 +123,19 @@ func drawStatus() {
 	statingLineStartPoint := len(stagingLines)
 	worktreeLineStartPoint := len(worktreeLines)
 
-	drawText(0, 0, "Changes to be committed:")
+	drawText(0, 0, "Changes to be committed:", coldef)
 	for i, s := range stagingLines {
-		drawText(0, 1+i, s.string())
+		drawText(0, 1+i, s.string(), termbox.ColorGreen)
 	}
 
-	drawText(0, 1+statingLineStartPoint, "Changes not staged for commit:")
+	drawText(0, 1+statingLineStartPoint, "Changes not staged for commit:", coldef)
 	for i, s := range worktreeLines {
-		drawText(0, 2+i+statingLineStartPoint, s.string())
+		drawText(0, 2+i+statingLineStartPoint, s.string(), termbox.ColorRed)
 	}
 
-	drawText(0, 2+statingLineStartPoint+worktreeLineStartPoint, "Untracked files:")
+	drawText(0, 2+statingLineStartPoint+worktreeLineStartPoint, "Untracked files:", coldef)
 	for i, s := range untrackingLines {
-		drawText(0, 3+i+statingLineStartPoint+worktreeLineStartPoint, s.string())
+		drawText(0, 3+i+statingLineStartPoint+worktreeLineStartPoint, s.string(), termbox.ColorRed)
 	}
 }
 
@@ -157,7 +158,7 @@ MAINLOOP:
 			}
 		}
 		termbox.Clear(coldef, coldef)
-		drawText(0, 0, "hoge")
+		drawText(0, 0, "hoge", coldef)
 		termbox.Flush()
 	}
 }
