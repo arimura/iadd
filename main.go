@@ -110,16 +110,14 @@ func drawStatus() {
 		}
 	}
 
-	sort.SliceStable(stagingLines, func(i, j int) bool {
-		return strings.Compare(stagingLines[i].file, stagingLines[j].file) == -1
-	})
-
-	sort.SliceStable(worktreeLines, func(i, j int) bool {
-		return strings.Compare(worktreeLines[i].file, worktreeLines[j].file) == -1
-	})
-	sort.SliceStable(untrackingLines, func(i, j int) bool {
-		return strings.Compare(untrackingLines[i].file, untrackingLines[j].file) == -1
-	})
+	sort := func(l []statusLine) {
+		sort.SliceStable(l, func(i, j int) bool {
+			return strings.Compare((l)[i].file, (l)[j].file) == -1
+		})
+	}
+	sort(stagingLines)
+	sort(worktreeLines)
+	sort(untrackingLines)
 
 	statingLineStartPoint := len(stagingLines)
 	worktreeLineStartPoint := len(worktreeLines)
