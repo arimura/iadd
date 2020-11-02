@@ -11,62 +11,19 @@ import (
 
 const coldef = termbox.ColorDefault
 
-var sortMap = map[byte]int{
-	' ': 100,
-	'?': 3,
-	'M': 2,
-	'A': 1,
-	'D': 2,
-	'R': 1,
-	'C': 100,
-	'U': 100,
-}
-
 func drawText(x, y int, text string, fg termbox.Attribute) {
 	for i, c := range text {
 		termbox.SetCell(x+i, y, c, fg, coldef)
 	}
 }
 
-type group int8
-
-const (
-	placeStagingHeader group = iota
-	placeStaging
-	placeWorkintreeHeader
-	placeWorkintree
-	placeUntrackedHeader
-	placeUntracked
-)
-
 type statusLine struct {
-	rowGroup   group
 	statusCode byte
 	file       string
 }
 
 func (s *statusLine) string() string {
 	return fmt.Sprintf("       %s %s", string(s.statusCode), s.file)
-}
-
-func (s *statusLine) group() group {
-	return s.group()
-}
-
-type row interface {
-	string() string
-	group() group
-}
-
-type header struct {
-	label string
-}
-
-func (h *header) string() string {
-	return h.label
-}
-func (h *header) group() group {
-	return h.group()
 }
 
 func drawStatus() {
@@ -83,9 +40,6 @@ func drawStatus() {
 		panic(e)
 	}
 
-	statusLines := make([]row, 0)
-	statusLines = append(statusLines, &header{label: "Changes to be committed:"})
-
 	stagingLines := make([]statusLine, 0)
 	worktreeLines := make([]statusLine, 0)
 	untrackingLines := make([]statusLine, 0)
@@ -93,7 +47,7 @@ func drawStatus() {
 	for file, fileStatus := range s {
 		//just one line for Untracked file
 		if fileStatus.Worktree == git.Untracked {
-			untrackingLines = append(untrackingLines, statusLine{placeUntracked, (byte)(fileStatus.Worktree), file})
+			untrackingLines = append(untrackingLines, statusLine{(byte)(fileStatus.Worktree), file})
 			continue
 		}
 
@@ -102,11 +56,11 @@ func drawStatus() {
 		}
 
 		if fileStatus.Worktree != git.Unmodified {
-			worktreeLines = append(worktreeLines, statusLine{placeWorkintree, (byte)(fileStatus.Worktree), file})
+			worktreeLines = append(worktreeLines, statusLine{(byte)(fileStatus.Worktree), file})
 		}
 
 		if fileStatus.Staging != git.Unmodified {
-			stagingLines = append(stagingLines, statusLine{placeStaging, (byte)(fileStatus.Staging), file})
+			stagingLines = append(stagingLines, statusLine{(byte)(fileStatus.Staging), file})
 		}
 		//TODO: handle copied, UpdatedButUnmarged
 	}
