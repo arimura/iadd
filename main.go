@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/go-git/go-git/v5"
@@ -15,7 +16,16 @@ func drawText(x, y int, text string) {
 	}
 }
 
-func gitHello() {
+type statusLine struct {
+	statusCode byte
+	file       string
+}
+
+func (s *statusLine) string() string {
+	return fmt.Sprintf("%s %s", string(s.statusCode), s.file)
+}
+
+func drawStatus() {
 	r, e := git.PlainOpen(".")
 	if e != nil {
 		panic(e)
@@ -28,7 +38,26 @@ func gitHello() {
 	if e != nil {
 		panic(e)
 	}
-	log.Printf("w: %v", s)
+
+	statusLines := make([]statusLine, 0)
+	for file, fileStatus := range s {
+		//just one line for Untracked file
+		if fileStatus.Worktree == git.Untracked {
+			statusLines = append(statusLines, statusLine{(byte)(fileStatus.Worktree), file})
+			continue
+		}
+
+		if fileStatus.Worktree != git.Unmodified {
+			statusLines = append(statusLines, statusLine{(byte)(fileStatus.Worktree), file})
+		}
+
+		if fileStatus.Staging != git.Unmodified {
+			statusLines = append(statusLines, statusLine{(byte)(fileStatus.Staging), file})
+		}
+	}
+	for _, s := range statusLines {
+		log.Println(s.string())
+	}
 }
 
 func main() {
@@ -37,7 +66,7 @@ func main() {
 		panic(err)
 	}
 	defer termbox.Close()
-	gitHello()
+	drawStatus()
 MAINLOOP:
 	for {
 		switch ev := termbox.PollEvent(); ev.Type {
