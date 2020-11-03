@@ -11,9 +11,9 @@ import (
 
 const coldef = termbox.ColorDefault
 
-func drawText(x, y int, text string, fg termbox.Attribute) {
+func drawText(x, y int, text string, fg, bg termbox.Attribute) {
 	for i, c := range text {
-		termbox.SetCell(x+i, y, c, fg, coldef)
+		termbox.SetCell(x+i, y, c, fg, bg)
 	}
 }
 
@@ -26,7 +26,45 @@ func (s *statusLine) string() string {
 	return fmt.Sprintf("       %s %s", string(s.statusCode), s.file)
 }
 
-func drawStatus() {
+type group struct {
+	header      string
+	statusLines []statusLine
+	fg          termbox.Attribute
+}
+
+func (g *group) lines() []line {
+	if len(g.statusLines) == 0 {
+		return make([]line, 0)
+	}
+	lines := make([]line, 0)
+	lines = append(lines, line{string: g.header, fg: coldef, bg: coldef})
+	for _, s := range g.statusLines {
+		lines = append(lines, line{
+			string: s.string(),
+			fg:     g.fg,
+			bg:     coldef,
+		})
+	}
+	return lines
+}
+
+type screenContent struct {
+	currentGroup    int
+	currentIdx      int
+	stagingGroup    group
+	worktreeGroup   group
+	untrackingGroup group
+}
+
+func newScreenContent() *screenContent {
+	return &screenContent{currentGroup: 0,
+		currentIdx:      0,
+		stagingGroup:    group{header: "Changes to be committed:", statusLines: make([]statusLine, 0), fg: termbox.ColorGreen},
+		worktreeGroup:   group{header: "Changes not staged for commit:", statusLines: make([]statusLine, 0), fg: termbox.ColorRed},
+		untrackingGroup: group{header: "Untracked files:", statusLines: make([]statusLine, 0), fg: termbox.ColorRed},
+	}
+}
+func (s *screenContent) loadCurrentStatus() {
 	r, e := git.PlainOpen(".")
 	if e != nil {
 		panic(e)
@@ -35,19 +73,15 @@ func drawStatus() {
 	if e != nil {
 		panic(e)
 	}
-	s, e := w.Status()
+	st, e := w.Status()
 	if e != nil {
 		panic(e)
 	}
 
-	stagingLines := make([]statusLine, 0)
-	worktreeLines := make([]statusLine, 0)
-	untrackingLines := make([]statusLine, 0)
-
-	for file, fileStatus := range s {
+	for file, fileStatus := range st {
 		//just one line for Untracked file
 		if fileStatus.Worktree == git.Untracked {
-			untrackingLines = append(untrackingLines, statusLine{(byte)(fileStatus.Worktree), file})
+			s.untrackingGroup.statusLines = append(s.untrackingGroup.statusLines, statusLine{(byte)(fileStatus.Worktree), file})
 			continue
 		}
 
@@ -56,40 +90,43 @@ func drawStatus() {
 		}
 
 		if fileStatus.Worktree != git.Unmodified {
-			worktreeLines = append(worktreeLines, statusLine{(byte)(fileStatus.Worktree), file})
+			s.worktreeGroup.statusLines = append(s.worktreeGroup.statusLines, statusLine{(byte)(fileStatus.Worktree), file})
 		}
 
 		if fileStatus.Staging != git.Unmodified {
-			stagingLines = append(stagingLines, statusLine{(byte)(fileStatus.Staging), file})
+			s.stagingGroup.statusLines = append(s.stagingGroup.statusLines, statusLine{(byte)(fileStatus.Staging), file})
 		}
 		//TODO: handle copied, UpdatedButUnmarged
 	}
-
 	sort := func(l []statusLine) {
 		sort.SliceStable(l, func(i, j int) bool {
 			return strings.Compare((l)[i].file, (l)[j].file) == -1
 		})
 	}
-	sort(stagingLines)
-	sort(worktreeLines)
-	sort(untrackingLines)
+	sort(s.stagingGroup.statusLines)
+	sort(s.worktreeGroup.statusLines)
+	sort(s.untrackingGroup.statusLines)
+}
 
-	statingLineStartPoint := len(stagingLines)
-	worktreeLineStartPoint := len(worktreeLines)
+func (s *screenContent) lines() []line {
+	a := make([]line, 0)
+	a = append(a, s.stagingGroup.lines()...)
+	a = append(a, s.worktreeGroup.lines()...)
+	a = append(a, s.untrackingGroup.lines()...)
+	return a
+}
 
-	drawText(0, 0, "Changes to be committed:", coldef)
-	for i, s := range stagingLines {
-		drawText(0, 1+i, s.string(), termbox.ColorGreen)
-	}
+type line struct {
+	string string
+	fg     termbox.Attribute
+	bg     termbox.Attribute
+}
 
-	drawText(0, 1+statingLineStartPoint, "Changes not staged for commit:", coldef)
-	for i, s := range worktreeLines {
-		drawText(0, 2+i+statingLineStartPoint, s.string(), termbox.ColorRed)
-	}
-
-	drawText(0, 2+statingLineStartPoint+worktreeLineStartPoint, "Untracked files:", coldef)
-	for i, s := range untrackingLines {
-		drawText(0, 3+i+statingLineStartPoint+worktreeLineStartPoint, s.string(), termbox.ColorRed)
+func drawStatus() {
+	sc := newScreenContent()
+	sc.loadCurrentStatus()
+	for i, l := range sc.lines() {
+		drawText(0, i, l.string, l.fg, l.bg)
 	}
 }
 
@@ -111,8 +148,8 @@ MAINLOOP:
 				break MAINLOOP
 			}
 		}
-		termbox.Clear(coldef, coldef)
-		drawText(0, 0, "hoge", coldef)
-		termbox.Flush()
+		// termbox.Clear(coldef, coldef)
+		// drawText(0, 0, "hoge", coldef)
+		// termbox.Flush()
 	}
 }
