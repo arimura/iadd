@@ -138,9 +138,6 @@ func (s *screenContent) decideInitialCusor() {
 
 func (s *screenContent) lines() []line {
 	a := make([]line, 0)
-
-	s.decideInitialCusor()
-
 	makeLine := func(g group, idx int) {
 		l := g.lines()
 		if s.currentGroup == idx {
@@ -153,6 +150,26 @@ func (s *screenContent) lines() []line {
 	makeLine(s.untrackingGroup, 2)
 
 	return a
+}
+
+func (s *screenContent) down() {
+	down := func(g group, currentGroup, nexcGroup int) {
+		if s.currentGroup == currentGroup {
+			if len(g.statusLines) <= s.currentIdx+1 {
+				s.currentGroup = nexcGroup
+				s.currentIdx = 0
+			} else {
+				s.currentIdx++
+			}
+		}
+	}
+	if s.currentGroup == 0 {
+		down(s.stagingGroup, 0, 1)
+	} else if s.currentGroup == 1 {
+		down(s.worktreeGroup, 1, 2)
+	} else if s.currentGroup == 2 {
+		down(s.untrackingGroup, 2, 0)
+	}
 }
 
 type line struct {
@@ -176,12 +193,12 @@ func main() {
 
 	sc := newScreenContent()
 	sc.loadCurrentStatus()
-
-	termbox.Clear(coldef, coldef)
-	drawStatus(sc)
-	termbox.Flush()
+	sc.decideInitialCusor()
 MAINLOOP:
 	for {
+		termbox.Clear(coldef, coldef)
+		drawStatus(sc)
+		termbox.Flush()
 		switch ev := termbox.PollEvent(); ev.Type {
 		case termbox.EventKey:
 			switch ev.Ch {
@@ -190,7 +207,7 @@ MAINLOOP:
 			}
 			switch ev.Key {
 			case termbox.KeyArrowDown:
-				break MAINLOOP
+				sc.down()
 			}
 
 		}
