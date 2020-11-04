@@ -48,6 +48,10 @@ func (g *group) lines() []line {
 	return lines
 }
 
+func (g *group) hasStatusLines() bool {
+	return len(g.statusLines) > 0
+}
+
 type screenContent struct {
 	currentGroup    int
 	currentIdx      int
@@ -117,11 +121,37 @@ func (s *screenContent) loadCurrentStatus() {
 	sort(s.untrackingGroup.statusLines)
 }
 
+func (s *screenContent) decideInitialCusor() {
+	if s.stagingGroup.hasStatusLines() {
+		s.currentGroup = 0
+		return
+	}
+	if s.worktreeGroup.hasStatusLines() {
+		s.currentGroup = 1
+		return
+	}
+	if s.untrackingGroup.hasStatusLines() {
+		s.currentGroup = 2
+		return
+	}
+}
+
 func (s *screenContent) lines() []line {
 	a := make([]line, 0)
-	a = append(a, s.stagingGroup.lines()...)
-	a = append(a, s.worktreeGroup.lines()...)
-	a = append(a, s.untrackingGroup.lines()...)
+
+	s.decideInitialCusor()
+
+	makeLine := func(g group, idx int) {
+		l := g.lines()
+		if s.currentGroup == idx {
+			l[s.currentIdx+1].bg = termbox.ColorYellow
+		}
+		a = append(a, l...)
+	}
+	makeLine(s.stagingGroup, 0)
+	makeLine(s.worktreeGroup, 1)
+	makeLine(s.untrackingGroup, 2)
+
 	return a
 }
 
@@ -131,9 +161,7 @@ type line struct {
 	bg     termbox.Attribute
 }
 
-func drawStatus() {
-	sc := newScreenContent()
-	sc.loadCurrentStatus()
+func drawStatus(sc *screenContent) {
 	for i, l := range sc.lines() {
 		drawText(0, i, l.string, l.fg, l.bg)
 	}
@@ -145,8 +173,12 @@ func main() {
 		panic(err)
 	}
 	defer termbox.Close()
+
+	sc := newScreenContent()
+	sc.loadCurrentStatus()
+
 	termbox.Clear(coldef, coldef)
-	drawStatus()
+	drawStatus(sc)
 	termbox.Flush()
 MAINLOOP:
 	for {
@@ -156,6 +188,11 @@ MAINLOOP:
 			case 'q':
 				break MAINLOOP
 			}
+			switch ev.Key {
+			case termbox.KeyArrowDown:
+				break MAINLOOP
+			}
+
 		}
 		// termbox.Clear(coldef, coldef)
 		// drawText(0, 0, "hoge", coldef)
