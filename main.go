@@ -58,10 +58,19 @@ type screenContent struct {
 
 func newScreenContent() *screenContent {
 	return &screenContent{currentGroup: 0,
-		currentIdx:      0,
-		stagingGroup:    group{header: "Changes to be committed:", statusLines: make([]statusLine, 0), fg: termbox.ColorGreen},
-		worktreeGroup:   group{header: "Changes not staged for commit:", statusLines: make([]statusLine, 0), fg: termbox.ColorRed},
-		untrackingGroup: group{header: "Untracked files:", statusLines: make([]statusLine, 0), fg: termbox.ColorRed},
+		currentIdx: 0,
+		stagingGroup: group{
+			header:      "Changes to be committed:",
+			statusLines: make([]statusLine, 0),
+			fg:          termbox.ColorGreen},
+		worktreeGroup: group{
+			header:      "Changes not staged for commit:",
+			statusLines: make([]statusLine, 0),
+			fg:          termbox.ColorRed},
+		untrackingGroup: group{
+			header:      "Untracked files:",
+			statusLines: make([]statusLine, 0),
+			fg:          termbox.ColorRed},
 	}
 }
 func (s *screenContent) loadCurrentStatus() {
