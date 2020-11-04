@@ -37,7 +37,6 @@ func (g *group) lines() []line {
 		return make([]line, 0)
 	}
 	lines := make([]line, 0)
-	lines = append(lines, line{string: g.header, fg: coldef, bg: coldef})
 	for _, s := range g.statusLines {
 		lines = append(lines, line{
 			string: s.string(),
@@ -53,16 +52,15 @@ func (g *group) hasStatusLines() bool {
 }
 
 type screenContent struct {
-	currentGroup    int
-	currentIdx      int
 	stagingGroup    group
 	worktreeGroup   group
 	untrackingGroup group
+	currentIdx      int
+	lineLen         int
 }
 
 func newScreenContent() *screenContent {
-	return &screenContent{currentGroup: 0,
-		currentIdx: 0,
+	return &screenContent{
 		stagingGroup: group{
 			header:      "Changes to be committed:",
 			statusLines: make([]statusLine, 0),
@@ -119,57 +117,52 @@ func (s *screenContent) loadCurrentStatus() {
 	sort(s.stagingGroup.statusLines)
 	sort(s.worktreeGroup.statusLines)
 	sort(s.untrackingGroup.statusLines)
-}
 
-func (s *screenContent) decideInitialCusor() {
-	if s.stagingGroup.hasStatusLines() {
-		s.currentGroup = 0
-		return
-	}
-	if s.worktreeGroup.hasStatusLines() {
-		s.currentGroup = 1
-		return
-	}
-	if s.untrackingGroup.hasStatusLines() {
-		s.currentGroup = 2
-		return
-	}
+	s.lineLen = len(s.stagingGroup.statusLines) + len(s.worktreeGroup.statusLines) + len(s.untrackingGroup.statusLines)
 }
 
 func (s *screenContent) lines() []line {
 	a := make([]line, 0)
-	makeLine := func(g group, idx int) {
-		l := g.lines()
-		if s.currentGroup == idx {
-			l[s.currentIdx+1].bg = termbox.ColorYellow
-		}
-		a = append(a, l...)
+	a = append(a, s.stagingGroup.lines()...)
+	a = append(a, s.worktreeGroup.lines()...)
+	a = append(a, s.untrackingGroup.lines()...)
+
+	a[s.currentIdx].bg = termbox.ColorYellow
+
+	cntGroupHeader := 0
+	if s.stagingGroup.hasStatusLines() {
+		a = insert(a, line{string: "hoge", fg: coldef, bg: coldef}, 0)
+		cntGroupHeader = cntGroupHeader + 1 + len(s.stagingGroup.statusLines)
 	}
-	makeLine(s.stagingGroup, 0)
-	makeLine(s.worktreeGroup, 1)
-	makeLine(s.untrackingGroup, 2)
+	if s.worktreeGroup.hasStatusLines() {
+		a = insert(a, line{string: "hoge", fg: coldef, bg: coldef}, cntGroupHeader)
+		cntGroupHeader = cntGroupHeader + 1 + len(s.worktreeGroup.statusLines)
+	}
+	if s.untrackingGroup.hasStatusLines() {
+		a = insert(a, line{string: "hoge", fg: coldef, bg: coldef}, cntGroupHeader)
+	}
 
 	return a
 }
 
+func insert(lines []line, l line, at int) []line {
+	latter := append([]line{l}, lines[at:]...)
+	lines = append(lines[:at], latter...)
+	return lines
+}
+
 func (s *screenContent) down() {
-	down := func(g group, currentGroup, nexcGroup int) {
-		if s.currentGroup == currentGroup {
-			if len(g.statusLines) <= s.currentIdx+1 {
-				s.currentGroup = nexcGroup
-				s.currentIdx = 0
-			} else {
-				s.currentIdx++
-			}
-		}
+	if s.currentIdx+1 >= s.lineLen {
+		return
 	}
-	if s.currentGroup == 0 {
-		down(s.stagingGroup, 0, 1)
-	} else if s.currentGroup == 1 {
-		down(s.worktreeGroup, 1, 2)
-	} else if s.currentGroup == 2 {
-		down(s.untrackingGroup, 2, 0)
+	s.currentIdx++
+}
+
+func (s *screenContent) up() {
+	if s.currentIdx == 0 {
+		return
 	}
+	s.currentIdx--
 }
 
 type line struct {
@@ -193,7 +186,6 @@ func main() {
 
 	sc := newScreenContent()
 	sc.loadCurrentStatus()
-	sc.decideInitialCusor()
 MAINLOOP:
 	for {
 		termbox.Clear(coldef, coldef)
@@ -208,11 +200,9 @@ MAINLOOP:
 			switch ev.Key {
 			case termbox.KeyArrowDown:
 				sc.down()
+			case termbox.KeyArrowUp:
+				sc.up()
 			}
-
 		}
-		// termbox.Clear(coldef, coldef)
-		// drawText(0, 0, "hoge", coldef)
-		// termbox.Flush()
 	}
 }
