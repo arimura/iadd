@@ -1,5 +1,5 @@
 run:
-	go run main.go
+	go run cmd/iadd/main.go
 
 test:
 	go test

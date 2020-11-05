@@ -1,4 +1,4 @@
-module github.com/arimura
+module github.com/arimura/iadd
 
 go 1.14
 
