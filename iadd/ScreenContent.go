@@ -11,7 +11,6 @@ import (
 
 const coldef = termbox.ColorDefault
 
-
 type StatusLine struct {
 	statusCode byte
 	file       string
@@ -201,7 +200,11 @@ func (s *ScreenContent) Revert() {
 	if e != nil {
 		panic(e)
 	}
-	i.Remove(f)
+	_, err := i.Remove(f)
+	if e != nil {
+		panic(err)
+	}
+	r.Storer.SetIndex(i)
 }
 
 type line struct {
@@ -209,4 +212,3 @@ type line struct {
 	Fg     termbox.Attribute
 	Bg     termbox.Attribute
 }
-
