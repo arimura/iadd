@@ -24,6 +24,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	//TODO: print final status
 	defer termbox.Close()
 
 	sc := iadd.NewScreenContent()
