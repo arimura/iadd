@@ -21,7 +21,6 @@ func (s *status) String() string {
 }
 
 type group struct {
-	header   string
 	statuses []status
 	fg       termbox.Attribute
 }
@@ -52,7 +51,7 @@ func (g *group) HasStatuses() bool {
 }
 
 type ScreenContent struct {
-	stagingGroup    group
+	indexGroup      group
 	worktreeGroup   group
 	untrackingGroup group
 	currentIdx      int
@@ -62,14 +61,14 @@ type ScreenContent struct {
 
 func NewScreenContent() *ScreenContent {
 	return &ScreenContent{
-		stagingGroup: *newStagingGroup(),
-		worktreeGroup: *newWorktreeGroup(),
+		indexGroup:      *newIndexGroup(),
+		worktreeGroup:   *newWorktreeGroup(),
 		untrackingGroup: *newUntrackingGroup(),
 	}
 }
 
 func (s *ScreenContent) LoadCurrentStatus() {
-	s.stagingGroup = *newStagingGroup()
+	s.indexGroup = *newIndexGroup()
 	s.worktreeGroup = *newWorktreeGroup()
 	s.untrackingGroup = *newUntrackingGroup()
 
@@ -102,68 +101,65 @@ func (s *ScreenContent) LoadCurrentStatus() {
 		}
 
 		if fileStatus.Staging != git.Unmodified {
-			s.stagingGroup.statuses = append(s.stagingGroup.statuses, status{(byte)(fileStatus.Staging), file})
+			s.indexGroup.statuses = append(s.indexGroup.statuses, status{(byte)(fileStatus.Staging), file})
 		}
 		//TODO: handle copied, UpdatedButUnmarged
 	}
 
-	s.stagingGroup.sortStatuses()
+	s.indexGroup.sortStatuses()
 	s.worktreeGroup.sortStatuses()
 	s.untrackingGroup.sortStatuses()
 
-	s.lineLen = len(s.stagingGroup.statuses) + len(s.worktreeGroup.statuses) + len(s.untrackingGroup.statuses)
-	s.statuses = s.stagingGroup.statuses
+	s.lineLen = len(s.indexGroup.statuses) + len(s.worktreeGroup.statuses) + len(s.untrackingGroup.statuses)
+	s.statuses = s.indexGroup.statuses
 	s.statuses = append(s.statuses, s.worktreeGroup.statuses...)
 	s.statuses = append(s.statuses, s.untrackingGroup.statuses...)
 }
 
 func newUntrackingGroup() *group {
 	return &group{
-		header:   "Untracked files:",
 		statuses: make([]status, 0),
 		fg:       termbox.ColorRed}
 }
 
 func newWorktreeGroup() *group {
 	return &group{
-		header:   "Changes not staged for commit:",
 		statuses: make([]status, 0),
 		fg:       termbox.ColorRed}
 }
 
-func newStagingGroup() *group {
+func newIndexGroup() *group {
 	return &group{
-		header:   "Changes to be committed:",
 		statuses: make([]status, 0),
 		fg:       termbox.ColorGreen}
 }
 
 func (s *ScreenContent) Lines() []line {
 	a := make([]line, 0)
-	a = append(a, s.stagingGroup.Lines()...)
+	a = append(a, s.indexGroup.Lines()...)
 	a = append(a, s.worktreeGroup.Lines()...)
 	a = append(a, s.untrackingGroup.Lines()...)
 
 	a[s.currentIdx].Bg = termbox.ColorYellow
 
 	cntGroupHeader := 1
-	a = Insert(a, line{String: "a: add, r: remove, q: quit", Fg: coldef, Bg: coldef}, 0)
-	if s.stagingGroup.HasStatuses() {
-		a = Insert(a, line{String: "Changes to be committed:", Fg: coldef, Bg: coldef}, 1)
-		cntGroupHeader = cntGroupHeader + 1 + len(s.stagingGroup.statuses)
+	a = insert(a, line{String: "a: add, r: remove, q: quit", Fg: coldef, Bg: coldef}, 0)
+	if s.indexGroup.HasStatuses() {
+		a = insert(a, line{String: "Changes to be committed:", Fg: coldef, Bg: coldef}, 1)
+		cntGroupHeader = cntGroupHeader + 1 + len(s.indexGroup.statuses)
 	}
 	if s.worktreeGroup.HasStatuses() {
-		a = Insert(a, line{String: "Changes not staged for commit:", Fg: coldef, Bg: coldef}, cntGroupHeader)
+		a = insert(a, line{String: "Changes not staged for commit:", Fg: coldef, Bg: coldef}, cntGroupHeader)
 		cntGroupHeader = cntGroupHeader + 1 + len(s.worktreeGroup.statuses)
 	}
 	if s.untrackingGroup.HasStatuses() {
-		a = Insert(a, line{String: "Untracked files:", Fg: coldef, Bg: coldef}, cntGroupHeader)
+		a = insert(a, line{String: "Untracked files:", Fg: coldef, Bg: coldef}, cntGroupHeader)
 	}
 
 	return a
 }
 
-func Insert(lines []line, l line, at int) []line {
+func insert(lines []line, l line, at int) []line {
 	latter := append([]line{l}, lines[at:]...)
 	lines = append(lines[:at], latter...)
 	return lines
@@ -196,7 +192,7 @@ func (s *ScreenContent) Add() {
 	w.Add(f)
 }
 
-func (s *ScreenContent) Revert() {
+func (s *ScreenContent) Remove() {
 	f := s.statuses[s.currentIdx].file
 	r, e := git.PlainOpen(".")
 	if e != nil {

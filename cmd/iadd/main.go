@@ -43,7 +43,7 @@ MAINLOOP:
 				sc.Add()
 				sc.LoadCurrentStatus()
 			case 'r':
-				sc.Revert()
+				sc.Remove()
 				sc.LoadCurrentStatus()
 			}
 			switch ev.Key {
