@@ -141,17 +141,18 @@ func (s *ScreenContent) Lines() []line {
 
 	a[s.currentIdx].Bg = termbox.ColorYellow
 
-	cntGroupHeader := 0
+	cntGroupHeader := 1
+	a = Insert(a, line{String: "a: add, r: remove, q: quit", Fg: coldef, Bg: coldef}, 0)
 	if s.stagingGroup.HasStatusLines() {
-		a = Insert(a, line{String: "hoge", Fg: coldef, Bg: coldef}, 0)
+		a = Insert(a, line{String: "Changes to be committed:", Fg: coldef, Bg: coldef}, 1)
 		cntGroupHeader = cntGroupHeader + 1 + len(s.stagingGroup.statusLines)
 	}
 	if s.worktreeGroup.HasStatusLines() {
-		a = Insert(a, line{String: "hoge", Fg: coldef, Bg: coldef}, cntGroupHeader)
+		a = Insert(a, line{String: "Changes not staged for commit:", Fg: coldef, Bg: coldef}, cntGroupHeader)
 		cntGroupHeader = cntGroupHeader + 1 + len(s.worktreeGroup.statusLines)
 	}
 	if s.untrackingGroup.HasStatusLines() {
-		a = Insert(a, line{String: "hoge", Fg: coldef, Bg: coldef}, cntGroupHeader)
+		a = Insert(a, line{String: "Untracked files:", Fg: coldef, Bg: coldef}, cntGroupHeader)
 	}
 
 	return a
