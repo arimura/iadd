@@ -5,8 +5,6 @@ import (
 	"github.com/nsf/termbox-go"
 )
 
-const coldef = termbox.ColorDefault
-
 func drawText(x, y int, text string, fg, bg termbox.Attribute) {
 	for i, c := range text {
 		termbox.SetCell(x+i, y, c, fg, bg)
@@ -31,7 +29,7 @@ func main() {
 	sc.LoadCurrentStatus()
 MAINLOOP:
 	for {
-		termbox.Clear(coldef, coldef)
+		termbox.Clear(iadd.Coldef, iadd.Coldef)
 		drawStatus(sc)
 		termbox.Flush()
 		switch ev := termbox.PollEvent(); ev.Type {

@@ -9,7 +9,7 @@ import (
 	"github.com/nsf/termbox-go"
 )
 
-const coldef = termbox.ColorDefault
+const Coldef = termbox.ColorDefault
 
 type status struct {
 	statusCode byte
@@ -34,7 +34,7 @@ func (g *group) Lines() []line {
 		lines = append(lines, line{
 			String: s.String(),
 			Fg:     g.fg,
-			Bg:     coldef,
+			Bg:     Coldef,
 		})
 	}
 	return lines
@@ -143,17 +143,17 @@ func (s *ScreenContent) Lines() []line {
 	a[s.currentIdx].Bg = termbox.ColorYellow
 
 	cntGroupHeader := 1
-	a = insert(a, line{String: "a: add, r: remove, q: quit", Fg: coldef, Bg: coldef}, 0)
+	a = insert(a, line{String: "a: add, r: remove, q: quit", Fg: Coldef, Bg: Coldef}, 0)
 	if s.indexGroup.HasStatuses() {
-		a = insert(a, line{String: "Changes to be committed:", Fg: coldef, Bg: coldef}, 1)
+		a = insert(a, line{String: "Changes to be committed:", Fg: Coldef, Bg: Coldef}, 1)
 		cntGroupHeader = cntGroupHeader + 1 + len(s.indexGroup.statuses)
 	}
 	if s.worktreeGroup.HasStatuses() {
-		a = insert(a, line{String: "Changes not staged for commit:", Fg: coldef, Bg: coldef}, cntGroupHeader)
+		a = insert(a, line{String: "Changes not staged for commit:", Fg: Coldef, Bg: Coldef}, cntGroupHeader)
 		cntGroupHeader = cntGroupHeader + 1 + len(s.worktreeGroup.statuses)
 	}
 	if s.untrackingGroup.HasStatuses() {
-		a = insert(a, line{String: "Untracked files:", Fg: coldef, Bg: coldef}, cntGroupHeader)
+		a = insert(a, line{String: "Untracked files:", Fg: Coldef, Bg: Coldef}, cntGroupHeader)
 	}
 
 	return a
