@@ -11,27 +11,27 @@ import (
 
 const coldef = termbox.ColorDefault
 
-type StatusLine struct {
+type status struct {
 	statusCode byte
 	file       string
 }
 
-func (s *StatusLine) String() string {
+func (s *status) String() string {
 	return fmt.Sprintf("       %s %s", string(s.statusCode), s.file)
 }
 
-type Group struct {
-	header      string
-	statusLines []StatusLine
-	fg          termbox.Attribute
+type group struct {
+	header   string
+	statuses []status
+	fg       termbox.Attribute
 }
 
-func (g *Group) Lines() []line {
-	if len(g.statusLines) == 0 {
+func (g *group) Lines() []line {
+	if len(g.statuses) == 0 {
 		return make([]line, 0)
 	}
 	lines := make([]line, 0)
-	for _, s := range g.statusLines {
+	for _, s := range g.statuses {
 		lines = append(lines, line{
 			String: s.String(),
 			Fg:     g.fg,
@@ -41,49 +41,37 @@ func (g *Group) Lines() []line {
 	return lines
 }
 
-func (g *Group) HasStatusLines() bool {
-	return len(g.statusLines) > 0
+func (g *group) sortStatuses(){
+	sort.SliceStable(g.statuses, func(i, j int) bool {
+		return strings.Compare((g.statuses)[i].file, (g.statuses)[j].file) == -1
+	})
+}
+
+func (g *group) HasStatuses() bool {
+	return len(g.statuses) > 0
 }
 
 type ScreenContent struct {
-	stagingGroup    Group
-	worktreeGroup   Group
-	untrackingGroup Group
+	stagingGroup    group
+	worktreeGroup   group
+	untrackingGroup group
 	currentIdx      int
 	lineLen         int
-	statusLines     []StatusLine
+	statuses        []status
 }
 
 func NewScreenContent() *ScreenContent {
 	return &ScreenContent{
-		stagingGroup: Group{
-			header:      "Changes to be committed:",
-			statusLines: make([]StatusLine, 0),
-			fg:          termbox.ColorGreen},
-		worktreeGroup: Group{
-			header:      "Changes not staged for commit:",
-			statusLines: make([]StatusLine, 0),
-			fg:          termbox.ColorRed},
-		untrackingGroup: Group{
-			header:      "Untracked files:",
-			statusLines: make([]StatusLine, 0),
-			fg:          termbox.ColorRed},
+		stagingGroup: *newStagingGroup(),
+		worktreeGroup: *newWorktreeGroup(),
+		untrackingGroup: *newUntrackingGroup(),
 	}
 }
 
 func (s *ScreenContent) LoadCurrentStatus() {
-	s.stagingGroup = Group{
-		header:      "Changes to be committed:",
-		statusLines: make([]StatusLine, 0),
-		fg:          termbox.ColorGreen}
-	s.worktreeGroup = Group{
-		header:      "Changes not staged for commit:",
-		statusLines: make([]StatusLine, 0),
-		fg:          termbox.ColorRed}
-	s.untrackingGroup = Group{
-		header:      "Untracked files:",
-		statusLines: make([]StatusLine, 0),
-		fg:          termbox.ColorRed}
+	s.stagingGroup = *newStagingGroup()
+	s.worktreeGroup = *newWorktreeGroup()
+	s.untrackingGroup = *newUntrackingGroup()
 
 	r, e := git.PlainOpen(".")
 	if e != nil {
@@ -101,7 +89,7 @@ func (s *ScreenContent) LoadCurrentStatus() {
 	for file, fileStatus := range st {
 		//just one line for Untracked file
 		if fileStatus.Worktree == git.Untracked {
-			s.untrackingGroup.statusLines = append(s.untrackingGroup.statusLines, StatusLine{(byte)(fileStatus.Worktree), file})
+			s.untrackingGroup.statuses = append(s.untrackingGroup.statuses, status{(byte)(fileStatus.Worktree), file})
 			continue
 		}
 
@@ -110,27 +98,44 @@ func (s *ScreenContent) LoadCurrentStatus() {
 		}
 
 		if fileStatus.Worktree != git.Unmodified {
-			s.worktreeGroup.statusLines = append(s.worktreeGroup.statusLines, StatusLine{(byte)(fileStatus.Worktree), file})
+			s.worktreeGroup.statuses = append(s.worktreeGroup.statuses, status{(byte)(fileStatus.Worktree), file})
 		}
 
 		if fileStatus.Staging != git.Unmodified {
-			s.stagingGroup.statusLines = append(s.stagingGroup.statusLines, StatusLine{(byte)(fileStatus.Staging), file})
+			s.stagingGroup.statuses = append(s.stagingGroup.statuses, status{(byte)(fileStatus.Staging), file})
 		}
 		//TODO: handle copied, UpdatedButUnmarged
 	}
-	sort := func(l []StatusLine) {
-		sort.SliceStable(l, func(i, j int) bool {
-			return strings.Compare((l)[i].file, (l)[j].file) == -1
-		})
-	}
-	sort(s.stagingGroup.statusLines)
-	sort(s.worktreeGroup.statusLines)
-	sort(s.untrackingGroup.statusLines)
 
-	s.lineLen = len(s.stagingGroup.statusLines) + len(s.worktreeGroup.statusLines) + len(s.untrackingGroup.statusLines)
-	s.statusLines = s.stagingGroup.statusLines
-	s.statusLines = append(s.statusLines, s.worktreeGroup.statusLines...)
-	s.statusLines = append(s.statusLines, s.untrackingGroup.statusLines...)
+	s.stagingGroup.sortStatuses()
+	s.worktreeGroup.sortStatuses()
+	s.untrackingGroup.sortStatuses()
+
+	s.lineLen = len(s.stagingGroup.statuses) + len(s.worktreeGroup.statuses) + len(s.untrackingGroup.statuses)
+	s.statuses = s.stagingGroup.statuses
+	s.statuses = append(s.statuses, s.worktreeGroup.statuses...)
+	s.statuses = append(s.statuses, s.untrackingGroup.statuses...)
+}
+
+func newUntrackingGroup() *group {
+	return &group{
+		header:   "Untracked files:",
+		statuses: make([]status, 0),
+		fg:       termbox.ColorRed}
+}
+
+func newWorktreeGroup() *group {
+	return &group{
+		header:   "Changes not staged for commit:",
+		statuses: make([]status, 0),
+		fg:       termbox.ColorRed}
+}
+
+func newStagingGroup() *group {
+	return &group{
+		header:   "Changes to be committed:",
+		statuses: make([]status, 0),
+		fg:       termbox.ColorGreen}
 }
 
 func (s *ScreenContent) Lines() []line {
@@ -143,15 +148,15 @@ func (s *ScreenContent) Lines() []line {
 
 	cntGroupHeader := 1
 	a = Insert(a, line{String: "a: add, r: remove, q: quit", Fg: coldef, Bg: coldef}, 0)
-	if s.stagingGroup.HasStatusLines() {
+	if s.stagingGroup.HasStatuses() {
 		a = Insert(a, line{String: "Changes to be committed:", Fg: coldef, Bg: coldef}, 1)
-		cntGroupHeader = cntGroupHeader + 1 + len(s.stagingGroup.statusLines)
+		cntGroupHeader = cntGroupHeader + 1 + len(s.stagingGroup.statuses)
 	}
-	if s.worktreeGroup.HasStatusLines() {
+	if s.worktreeGroup.HasStatuses() {
 		a = Insert(a, line{String: "Changes not staged for commit:", Fg: coldef, Bg: coldef}, cntGroupHeader)
-		cntGroupHeader = cntGroupHeader + 1 + len(s.worktreeGroup.statusLines)
+		cntGroupHeader = cntGroupHeader + 1 + len(s.worktreeGroup.statuses)
 	}
-	if s.untrackingGroup.HasStatusLines() {
+	if s.untrackingGroup.HasStatuses() {
 		a = Insert(a, line{String: "Untracked files:", Fg: coldef, Bg: coldef}, cntGroupHeader)
 	}
 
@@ -179,7 +184,7 @@ func (s *ScreenContent) Up() {
 }
 
 func (s *ScreenContent) Add() {
-	f := s.statusLines[s.currentIdx].file
+	f := s.statuses[s.currentIdx].file
 	r, e := git.PlainOpen(".")
 	if e != nil {
 		panic(e)
@@ -192,7 +197,7 @@ func (s *ScreenContent) Add() {
 }
 
 func (s *ScreenContent) Revert() {
-	f := s.statusLines[s.currentIdx].file
+	f := s.statuses[s.currentIdx].file
 	r, e := git.PlainOpen(".")
 	if e != nil {
 		panic(e)
