@@ -40,7 +40,7 @@ func (g *group) Lines() []line {
 	return lines
 }
 
-func (g *group) sortStatuses(){
+func (g *group) sortStatuses() {
 	sort.SliceStable(g.statuses, func(i, j int) bool {
 		return strings.Compare((g.statuses)[i].file, (g.statuses)[j].file) == -1
 	})
